@@ -26,19 +26,17 @@ class DriverReportSummary(BaseModel):
     driver_id: int
     driver_name: str
     total_reports: int
-    
+
+
 class UserUpdate(BaseModel):
-    """
-    Schema for updating user details.
-    Only includes fields that can be updated.
-    """
     name: Optional[str]
     email: Optional[EmailStr]
     phone_number: Optional[str]
 
     class Config:
         orm_mode = True
-        
+
+
 class VehicleBase(BaseModel):
     vehicle_number: str
     total_tonnage: float
@@ -67,24 +65,33 @@ class DriverLocationCreate(DriverLocationBase):
 
 class DriverLocationResponse(DriverLocationBase):
     id: int
-    updated_at: datetime  # Make sure to track this in the database
+    updated_at: datetime
 
     class Config:
         orm_mode = True
+
+
+# New schema for updating driver location
+class DriverLocationUpdate(BaseModel):
+    latitude: Optional[float]  # Optional
+    longitude: Optional[float]  # Optional
 
 
 class TripBase(BaseModel):
     source: str
     destination: str
     status: Optional[str] = "In-Route"
-    expected_arrival: datetime
+    expected_arrival: Optional[datetime] = None
     next_halt: Optional[str] = None
     safety_info: Optional[str] = None
+    tonnage: float
 
 
 class TripCreate(TripBase):
     vehicle_id: int
     driver_id: int
+    # New field for intermediate destinations
+    intermediate_destinations: Optional[List[str]] = None
 
 
 class TripResponse(TripBase):
@@ -131,13 +138,39 @@ class GeofenceBase(BaseModel):
     lat: float
     lng: float
     radius: float
+    time_limit_minutes: int  # Added field for time limit
 
 
 class GeofenceCreate(GeofenceBase):
-    pass  # This can be removed if you don't need additional fields
+    pass
 
 
 class GeofenceResponse(GeofenceBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+
+class TripAssignResponse(BaseModel):
+    message: str
+    # Assuming route details are returned as a string
+    route_details: Optional[str]
+
+    class Config:
+        orm_mode = True
+
+
+class IntermediateDestinationBase(BaseModel):
+    destination: str
+    sequence: int
+
+
+class IntermediateDestinationCreate(IntermediateDestinationBase):
+    trip_id: int
+
+
+class IntermediateDestinationResponse(IntermediateDestinationBase):
     id: int
 
     class Config:
