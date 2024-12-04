@@ -4,13 +4,14 @@ from sqlalchemy import func
 from app.db import get_db
 from app import models, schemas
 from app.routes.auth import role_required
+from models import UserRole
 
 router = APIRouter()
 
 @router.get("/driver-reports", response_model=list[schemas.DriverReportSummary])
 async def get_driver_reports(
     db: Session = Depends(get_db),
-    user: models.User = Depends(role_required("admin"))
+    user: models.User = Depends(role_required(UserRole.ADMIN))
 ):
     """
     Fetch a list of all drivers sorted by their number of delay reports (desc).

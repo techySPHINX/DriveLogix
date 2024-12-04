@@ -8,8 +8,9 @@ from app.utils import (
     check_geofence, calculate_distance, send_flash_notification,
     get_best_route_from_api
 )
-from app.models import DelayReport, Trip
+from app.models import DelayReport, Geofence, Trip, UserRole
 from typing import List
+import asyncio
 
 router = APIRouter()
 
@@ -18,7 +19,7 @@ router = APIRouter()
 async def create_trip(
     trip: schemas.TripCreate,
     db: Session = Depends(get_db),
-    user: models.User = Depends(role_required("admin"))
+    user: models.User = Depends(role_required(UserRole.ADMIN))
 ):
     """Create a new trip and assign it to a vehicle."""
     vehicle = db.query(models.Vehicle).filter(
@@ -43,7 +44,7 @@ async def create_trip(
     return {"message": "Trip created successfully", "trip_id": new_trip.id}
 
 
-@router.get("/{vehicle_id}")
+@router.get("/{vehicle_id}") 
 async def get_trips(vehicle_id: int, db: Session = Depends(get_db)):
     """Retrieve all trips assigned to a specific vehicle."""
     trips = db.query(models.Trip).filter(
@@ -57,7 +58,7 @@ async def get_trips(vehicle_id: int, db: Session = Depends(get_db)):
 @router.patch("/{trip_id}/status")
 async def update_trip_status(
     trip_id: int, status: str, db: Session = Depends(get_db),
-    user: models.User = Depends(role_required("admin"))
+    user: models.User = Depends(role_required(UserRole.DRIVER))
 ):
     """Update the status of a trip (e.g., In-Route, Delivered, Delayed)."""
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
@@ -74,7 +75,7 @@ async def update_trip_status(
 @router.post("/{trip_id}/vote")
 async def vote_trip(
     trip_id: int, vote: str, db: Session = Depends(get_db),
-    user: models.User = Depends(role_required("driver"))
+    user: models.User = Depends(role_required(UserRole.DRIVER))
 ):
     """Allow drivers to upvote or downvote trip performance."""
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
@@ -95,7 +96,7 @@ async def vote_trip(
 @router.put("/{trip_id}/add-intermediate-destination/")
 async def add_intermediate_destination(
     trip_id: int, destination: str, sequence: int,
-    db: Session = Depends(get_db), user: models.User = Depends(role_required("admin"))
+    db: Session = Depends(get_db), user: models.User = Depends(role_required(UserRole.ADMIN))
 ):
     """Admin can add an intermediate destination to an existing trip."""
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
@@ -114,7 +115,7 @@ async def add_intermediate_destination(
 
 @router.get("/{trip_id}/intermediate_destinations")
 async def get_intermediate_destinations(
-    trip_id: int, db: Session = Depends(get_db), user: models.User = Depends(role_required("driver"))
+    trip_id: int, db: Session = Depends(get_db), user: models.User = Depends(role_required(UserRole.ADMIN))
 ):
     """Get intermediate destinations for a specific trip."""
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
@@ -135,7 +136,7 @@ async def get_intermediate_destinations(
 @router.put("/{trip_id}/update-vehicle-tonnage/")
 async def update_vehicle_tonnage(
     trip_id: int, tonnage: float, db: Session = Depends(get_db),
-    user: models.User = Depends(role_required("admin", "driver"))
+    user: models.User = Depends(role_required(UserRole.DRIVER))
 ):
     """Admin and driver can update the vehicle's tonnage for the trip."""
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
@@ -219,10 +220,9 @@ async def check_trip_geofence(
     return {"message": "No geofence violations detected."}
 
 
-
 @router.get("/find-nearby-drivers/{trip_id}", response_model=List[schemas.DriverLocationResponse])
 async def find_nearby_drivers(
-    trip_id: int, db: Session = Depends(get_db), user: models.User = Depends(role_required("admin"))
+    trip_id: int, db: Session = Depends(get_db), user: models.User = Depends(role_required(UserRole.ADMIN))
 ):
     """Find drivers within a given radius of the trip destination and sort them by distance."""
     # Fetch the trip details
@@ -265,7 +265,7 @@ async def find_nearby_drivers(
 
 @router.post("/assign-trip/{driver_id}/{trip_id}", response_model=schemas.TripAssignResponse)
 async def assign_trip_to_driver(
-    driver_id: int, trip_id: int, db: Session = Depends(get_db), user: models.User = Depends(role_required("admin"))
+    driver_id: int, trip_id: int, db: Session = Depends(get_db), user: models.User = Depends(role_required(UserRole.ADMIN))
 ):
     """Assign a trip to a driver, including best route suggestions."""
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
@@ -316,20 +316,30 @@ async def assign_trip_to_driver(
 
 @router.get("/route/{trip_id}")
 async def get_trip_route(
-    trip_id: int, db: Session = Depends(get_db), user: models.User = Depends(role_required("driver"))
+    trip_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(role_required(UserRole.DRIVER)),    
 ):
-    """Get the assigned route for a specific trip."""
+    """
+    Retrieve the route details for a specific trip.
+    """
     trip = db.query(models.Trip).filter(models.Trip.id ==
                                         trip_id, models.Trip.driver_id == user.id).first()
     if not trip:
         raise HTTPException(
-            status_code=404, detail="Trip not found or not assigned to the driver")
+            status_code=404, detail="Trip not found or not assigned to the driver"
+        )
 
     if not trip.route_details:
         raise HTTPException(
-            status_code=400, detail="No route assigned for this trip")
+            status_code=400, detail="No route assigned for this trip"
+        )
 
-    return {"route_details": trip.route_details}
+    return {
+        "trip_id": trip.id,
+        "route_details": trip.route_details,
+    }
+
 
 
 @router.put("/update_trip_status/{trip_id}")
@@ -358,3 +368,84 @@ def update_trip_status(
     db.commit()
 
     return {"msg": "Trip status updated"}
+
+
+@router.post("/start-geofence-timer/{trip_id}/{geofence_id}/")
+async def start_geofence_timer(
+    trip_id: int,
+    geofence_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Start a geofence timer for a trip and notify the admin once it stops.
+    """
+    # Fetch the trip
+    trip = db.query(Trip).filter(Trip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    # Fetch the geofence
+    geofence = db.query(Geofence).filter(Geofence.id == geofence_id).first()
+    if not geofence:
+        raise HTTPException(status_code=404, detail="Geofence not found")
+
+    # Ensure trip and geofence are linked or valid
+    if trip.geofence_id != geofence.id:
+        raise HTTPException(
+            status_code=400,
+            detail="The specified geofence is not linked to this trip."
+        )
+
+    # Start the timer in an asynchronous task
+    asyncio.create_task(geofence_timer(trip_id, geofence_id, db))
+
+    return {"message": f"Geofence timer started for trip ID {trip_id} and geofence ID {geofence_id}."}
+
+async def geofence_timer(trip_id: int, geofence_id: int, db: Session):
+    """
+    Start a timer for the geofence during a trip and notify admin once the timer stops.
+    """
+    trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    await notify_admin_timer_stopped(trip_id, geofence_id, db)  # Implement this function to notify the admin
+    geofence = db.query(models.Geofence).filter(
+        models.Geofence.id == geofence_id).first()
+    if not geofence:
+        raise HTTPException(status_code=404, detail="Geofence not found")
+
+    # Start the timer
+    # Wait for the geofence time limit
+    await asyncio.sleep(geofence.time_limit_minutes * 60)
+
+    # Notify the admin once the timer is stopped
+    notify_admin_timer_stopped()  # Implement this function to notify the admin
+
+    # After the timer stops, check if the driver is inside the geofence
+    await check_geofence(trip_id, db)
+
+
+def notify_admin_timer_stopped(trip_id: int, geofence_id: int, db: Session):
+    """
+    Notify the admin that the geofence timer has stopped for a specific trip and geofence.
+    """
+    # Fetch trip and admin details
+    trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
+    geofence = db.query(models.Geofence).filter(
+        models.Geofence.id == geofence_id).first()
+
+    if not trip or not geofence:
+        return
+
+    # Assuming trip.admin_id points to the admin responsible for the trip
+    admin_id = trip.admin_id
+    if not admin_id:
+        return
+
+    # Send notification to the admin
+    send_flash_notification(
+        admin_id,
+        f"Geofence timer for trip '{
+            trip.id}' has ended. Please check the geofence status.",
+        db
+    )

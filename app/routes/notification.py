@@ -1,15 +1,25 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.db import get_db
-from app.models import Notification, User
-from app.utils import send_push_notification
-from typing import List
-from datetime import datetime
+from app.models import Notification
+from app.utils import save_notification,send_flash_notification
+from typing import Dict
+import redis
+import asyncio
+import os
 
 router = APIRouter()
 
+# Redis configuration
+REDIS_HOST = os.getenv("REDIS_HOST_NOTIFICATION")
+REDIS_PORT = int(os.getenv("REDIS_PORT_NOTIFICATION"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD_NOTIFICATION")
+
+redis_client = redis.Redis(
+    host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
+
 # Active WebSocket connections indexed by user ID
-active_connections: dict[int, WebSocket] = {}
+active_connections: Dict[int, WebSocket] = {}
 
 
 @router.websocket("/ws/notifications/{user_id}")
@@ -17,19 +27,18 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
     """Handle WebSocket connections for real-time notifications."""
     await websocket.accept()
     active_connections[user_id] = websocket
-    print(f"User {user_id} connected to notifications WebSocket.")
+    print(f"User  {user_id} connected to notifications WebSocket.")
 
     try:
         while True:
             await websocket.receive_text()  # Keep the connection alive
     except WebSocketDisconnect:
         active_connections.pop(user_id, None)
-        print(f"User {user_id} disconnected from WebSocket.")
+        print(f"User  {user_id} disconnected from WebSocket.")
 
 
-async def send_notification_to_clients(user_id: int, message: str, db: Session):
-    """Send notifications to a specific user via WebSocket or push notification."""
-    # Send WebSocket notification if the user is connected
+async def send_notification_to_clients(user_id: int, message: str):
+    """Send notifications to a specific user via WebSocket or store in the database."""
     websocket = active_connections.get(user_id)
     if websocket:
         try:
@@ -39,44 +48,65 @@ async def send_notification_to_clients(user_id: int, message: str, db: Session):
             print(f"Error sending WebSocket notification to user {
                   user_id}: {e}")
     else:
-        # Fallback to push notification if WebSocket is not available
-        user = db.query(User).filter(User.id == user_id).first()
-        if user and user.push_notification_token:
-            try:
-                send_push_notification(
-                    user.push_notification_token, "Notification", message)
-                print(f"Push notification sent to user {user_id}: {message}")
-            except Exception as e:
-                print(f"Failed to send push notification to user {
-                      user_id}: {e}")
-
-    # Save the notification in the database for record-keeping
-    notification = Notification(
-        user_id=user_id,
-        message=message,
-        timestamp=datetime.utcnow()
-    )
-    db.add(notification)
-    db.commit()
-    print(f"Notification saved for user {user_id}.")
+        # Save the notification in the Redis database
+        save_notification(user_id, message)
 
 
-@router.post("/push-notifications/send")
-async def send_push(title: str, message: str, player_id: str):
-    """Manually send a push notification to a specific device using OneSignal."""
-    try:
-        send_push_notification(player_id, title, message)
-        return {"message": "Push notification sent"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/notifications/send")
+async def create_notification(notification: Notification, background_tasks: BackgroundTasks):
+    """Create a notification and send it to the user."""
+    background_tasks.add_task(
+        send_notification_to_clients, notification.user_id, notification.message)
+    await publish_notification(notification.user_id, notification.message)
+    return {"message": "Notification created and sent"}
 
 
-@router.get("/notifications/{user_id}", response_model=List[Notification])
-async def get_user_notifications(user_id: int, db: Session = Depends(get_db)):
-    """Fetch all stored notifications for a specific user."""
-    notifications = db.query(Notification).filter(
-        Notification.user_id == user_id).all()
-    if not notifications:
-        raise HTTPException(
-            status_code=404, detail="No notifications found for the user.")
-    return notifications
+@router.post("/notifications/flash")
+async def create_flash_notification(user_id: int, message: str, background_tasks: BackgroundTasks):
+    """Create a flash notification and send it to the user."""
+    background_tasks.add_task(
+        send_flash_notification, user_id, message)
+    await publish_flash_notification(user_id, message)
+    return {"message": "Flash notification created and sent"}
+
+
+async def publish_notification(user_id: int, message: str):
+    """Publish notification to Redis for other services to consume."""
+    redis_client.publish(f"user_notifications:{user_id}", message)
+
+
+async def publish_flash_notification(user_id: int, message: str):
+    """Publish flash notification to Redis for other services to consume."""
+    redis_client.publish(f"user_flash_notifications:{user_id}", message)
+
+
+async def redis_listener():
+    """Listen for notifications on Redis and send them to connected WebSocket clients."""
+    pubsub = redis_client.pubsub()
+    pubsub.subscribe("user_notifications:*", "user_flash_notifications:*")
+    for message in pubsub.listen():
+        if message['type'] == 'message':
+            channel = message['channel'].decode('utf-8')
+            user_id = int(channel.split(":")[1])
+            notification_message = message['data'].decode('utf-8')
+            if user_id in active_connections:
+                websocket = active_connections[user_id]
+                await websocket.send_text(notification_message)
+                print(
+                    f"Real-time notification sent to user {user_id}: {notification_message}")
+            else:
+                # Handle the case where the user is not connected
+                save_notification(user_id, notification_message)
+
+
+async def start_redis_listener():
+    """Start the Redis listener in the background."""
+    loop = asyncio.get_event_loop()
+    loop.create_task(redis_listener())
+
+# Start the Redis listener when the application starts
+
+
+@router.on_event("startup")
+async def startup_event():
+ await start_redis_listener()

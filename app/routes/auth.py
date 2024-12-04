@@ -1,40 +1,40 @@
 from fastapi import APIRouter, HTTPException, Depends
+import redis
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-import requests
+import random
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from app.db import get_db
 from app import models, schemas
-from app.models import User
+from app.models import User, UserRole
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from redis import Redis
+from twilio.rest import Client
 
 load_dotenv()
-
-CLERK_API_KEY = os.getenv("CLERK_API_KEY")
-CLERK_FRONTEND_API = os.getenv("CLERK_FRONTEND_API")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = int(os.getenv("REDIS_PORT"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 
 router = APIRouter()
 
-# OAuth2 password bearer for token handling
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# Define the role-based access
+redis_client = redis.Redis(
+    host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
 
-def role_required(role: str):
-    def role_checker(user: User = Depends(get_current_user)):
-        if user.role != role:
-            raise HTTPException(
-                status_code=403, detail="You do not have the necessary permissions"
-            )
-        return user
-    return role_checker
+TWILIO_ACCOUNT_SID = "your_test_account_sid"
+TWILIO_AUTH_TOKEN = "your_test_auth_token"
+TWILIO_PHONE_NUMBER = "+15005550006"
+
+client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 
 class OTPRequest(BaseModel):
@@ -51,96 +51,47 @@ class Token(BaseModel):
     token_type: str
 
 
-class UserInDB(models.User):
-    hashed_password: str
-
-
 @router.post("/send-otp/")
-async def send_otp(request: OTPRequest):
-    """
-    Endpoint to send OTP to the user's phone number using Clerk API.
-    """
-    url = "https://api.clerk.dev/v1/otp/send"
-    headers = {
-        "Authorization": f"Bearer {CLERK_API_KEY}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "phone_number": request.phone_number,
-        "channel": "sms",  # You can change this to "whatsapp" if required
-    }
+async def send_otp(request: OTPRequest, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(
+        models.User.phone_number == request.phone_number).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User  not found")
 
-    response = requests.post(url, headers=headers, json=payload)
+    otp = random.randint(100000, 999999)
+    redis.hmset(request.phone_number, {
+                "otp": otp, "expires_at": datetime.utcnow().timestamp() + 300})
 
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to send OTP: {
-                response.json().get('message', 'Unknown error')}",
-        )
+    message = f"Your OTP is {otp}"
+    client.messages.create(
+        body=message, from_=TWILIO_PHONE_NUMBER, to=request.phone_number)
 
     return {"message": "OTP sent successfully", "phone_number": request.phone_number}
 
 
 @router.post("/verify-otp/")
 async def verify_otp(request: OTPVerificationRequest):
-    """
-    Endpoint to verify OTP using Clerk API.
-    """
-    url = "https://api.clerk.dev/v1/otp/verify"
-    headers = {
-        "Authorization": f"Bearer {CLERK_API_KEY}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "phone_number": request.phone_number,
-        "otp": request.otp,
-    }
+    otp_data = redis.hgetall(request.phone_number)
+    if not otp_data:
+        raise HTTPException(status_code=400, detail="OTP not sent or expired")
 
-    response = requests.post(url, headers=headers, json=payload)
+    if datetime.utcnow().timestamp() > int(otp_data[b"expires_at"]):
+        redis.delete(request.phone_number)
+        raise HTTPException(status_code=400, detail="OTP has expired")
 
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=400,
-            detail=f"OTP verification failed: {
-                response.json().get('message', 'Invalid OTP')}",
-        )
+    if otp_data[b"otp"] != request.otp.encode():
+        raise HTTPException(status_code=400, detail="Invalid OTP")
 
-    user_data = response.json()
-    return {
-        "message": "OTP verified successfully",
-        "user_id": user_data.get("id"),
-        "phone_number": request.phone_number,
-    }
+    redis.delete(request.phone_number)
 
-
-@router.post("/token", response_model=Token)
-async def login_for_access_token(form_data: schemas.UserCreate, db: Session = Depends(get_db)):
-    """
-    Generate access token for the user after successful login (OTP verified).
-    """
-    # Authenticate user from database (Check Clerk API integration)
-    user = db.query(models.User).filter(
-        models.User.phone_number == form_data.phone_number).first()
-
-    if not user:
-        raise HTTPException(
-            status_code=400,
-            detail="Incorrect username or password",
-        )
-
-    # Create JWT token for session management
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.phone_number}, expires_delta=access_token_expires)
+        data={"sub": request.phone_number}, expires_delta=access_token_expires)
 
     return {"access_token": access_token, "token_type": "bearer"}
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    """
-    Generate JWT token using Clerk verified data (sub = phone_number).
-    """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -151,37 +102,54 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    """
-    Get the current user based on JWT token
-    """
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     credentials_exception = HTTPException(
         status_code=401,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         phone_number: str = payload.get("sub")
         if phone_number is None:
             raise credentials_exception
+
         user = db.query(models.User).filter(
             models.User.phone_number == phone_number).first()
+        print(f"Retrieved user: {user}")  # Debugging line
+
         if user is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
+
     return user
+
+
+def role_required(required_role: UserRole):
+    def role_checker(current_user: User = Depends(get_current_user)):
+        print(f"Current user: {current_user}")  # Debugging line
+
+        # Check if the user is authenticated
+        if current_user is None:
+            raise HTTPException(
+                status_code=401, detail="User  not authenticated")
+
+        # Check if the user has a role attribute
+        if not hasattr(current_user, 'role'):
+            raise HTTPException(
+                status_code=403, detail="User  does not have a role attribute")
+
+        # Check if the user's role matches the required role
+        if current_user.role != required_role:
+            raise HTTPException(
+                status_code=403, detail="Operation not permitted")
+
+        return current_user  # Return the current user if all checks pass
+
+    return role_checker
 
 
 @router.get("/public-key/")
 def get_public_key():
-    """
-    Endpoint to return Clerk's frontend API key for client-side integration.
-    """
-    if not CLERK_FRONTEND_API:
-        raise HTTPException(
-            status_code=500, detail="Clerk Frontend API Key is not configured"
-        )
-    return {"frontend_api": CLERK_FRONTEND_API}
+    return {"public_key": "dummy_public_key"}

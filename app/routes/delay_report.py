@@ -10,7 +10,6 @@ router = APIRouter()
 
 # Route to create a delay report
 
-
 @router.post("/create", response_model=DelayReportResponse)
 async def create_delay_report(
     delay_report: DelayReportCreate,
