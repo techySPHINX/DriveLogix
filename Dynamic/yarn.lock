@@ -1818,6 +1818,11 @@
   resolved "https://registry.npmjs.org/@react-native-community/viewpager/-/viewpager-5.0.11.tgz"
   integrity sha512-eboJwbDQjP1qJP3LFzVspgh88IGNF07S2qpU296j+4kL0inVuL+HXs81SuczMGtJmDZ4u19RNEBVq79of/h+jQ==
 
+"@react-native-picker/picker@^2.10.2":
+  version "2.10.2"
+  resolved "https://registry.npmjs.org/@react-native-picker/picker/-/picker-2.10.2.tgz"
+  integrity sha512-kr3OvCRwTYjR/OKlb52k4xmQVU7dPRIALqpyiihexdJxEgvc1smnepgqCeM9oXmNSG4YaV5/RSxFlLC5Z/T/Eg==
+
 "@react-native/assets-registry@0.76.3":
   version "0.76.3"
   resolved "https://registry.npmjs.org/@react-native/assets-registry/-/assets-registry-0.76.3.tgz"
@@ -2198,6 +2203,11 @@
   version "1.0.6"
   resolved "https://registry.npmjs.org/@types/estree/-/estree-1.0.6.tgz"
   integrity sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==
+
+"@types/geojson@^7946.0.13":
+  version "7946.0.15"
+  resolved "https://registry.npmjs.org/@types/geojson/-/geojson-7946.0.15.tgz"
+  integrity sha512-9oSxFzDCT2Rj6DfcHF8G++jxBKS7mBqXl5xrRW+Kbvjry6Uduya2iiwqHPhVXpasAVMBYKkEPGgKhd3+/HZ6xA==
 
 "@types/graceful-fs@^4.1.3":
   version "4.1.9"
@@ -6657,6 +6667,11 @@ react-native-animatable@^1.4.0:
   dependencies:
     prop-types "^15.8.1"
 
+react-native-geolocation-service@^5.3.1:
+  version "5.3.1"
+  resolved "https://registry.npmjs.org/react-native-geolocation-service/-/react-native-geolocation-service-5.3.1.tgz"
+  integrity sha512-LTXPtPNmrdhx+yeWG47sAaCgQc3nG1z+HLLHlhK/5YfOgfLcAb9HAkhREPjQKPZOUx8pKZMIpdGFUGfJYtimXQ==
+
 "react-native-gesture-handler@>= 2.0.0", react-native-gesture-handler@~2.20.2:
   version "2.20.2"
   resolved "https://registry.npmjs.org/react-native-gesture-handler/-/react-native-gesture-handler-2.20.2.tgz"
@@ -6680,6 +6695,13 @@ react-native-is-edge-to-edge@^1.1.6:
   version "1.1.6"
   resolved "https://registry.npmjs.org/react-native-is-edge-to-edge/-/react-native-is-edge-to-edge-1.1.6.tgz"
   integrity sha512-1pHnFTlBahins6UAajXUqeCOHew9l9C2C8tErnpGC3IyLJzvxD+TpYAixnCbrVS52f7+NvMttbiSI290XfwN0w==
+
+react-native-maps@^1.20.1:
+  version "1.20.1"
+  resolved "https://registry.npmjs.org/react-native-maps/-/react-native-maps-1.20.1.tgz"
+  integrity sha512-NZI3B5Z6kxAb8gzb2Wxzu/+P2SlFIg1waHGIpQmazDSCRkNoHNY4g96g+xS0QPSaG/9xRBbDNnd2f2/OW6t6LQ==
+  dependencies:
+    "@types/geojson" "^7946.0.13"
 
 react-native-paper@^5.12.5:
   version "5.12.5"
@@ -6728,7 +6750,7 @@ react-native-vector-icons@*, react-native-vector-icons@^10.2.0:
     prop-types "^15.7.2"
     yargs "^16.1.1"
 
-react-native-web@*, react-native-web@~0.19.13:
+react-native-web@*, "react-native-web@>= 0.11", react-native-web@~0.19.13:
   version "0.19.13"
   resolved "https://registry.npmjs.org/react-native-web/-/react-native-web-0.19.13.tgz"
   integrity sha512-etv3bN8rJglrRCp/uL4p7l8QvUNUC++QwDbdZ8CB7BvZiMvsxfFIRM1j04vxNldG3uo2puRd6OSWR3ibtmc29A==
@@ -6750,7 +6772,7 @@ react-native-webview@*, react-native-webview@13.12.5:
     escape-string-regexp "^4.0.0"
     invariant "2.2.4"
 
-react-native@*, "react-native@^0.0.0-0 || >=0.60 <1.0", react-native@>=0.73.0, react-native@0.76.3:
+react-native@*, "react-native@^0.0.0-0 || >=0.60 <1.0", "react-native@>= 0.64.3", react-native@>=0.73.0, react-native@0.76.3:
   version "0.76.3"
   resolved "https://registry.npmjs.org/react-native/-/react-native-0.76.3.tgz"
   integrity sha512-0TUhgmlouRNf6yuDIIAdbQl0g1VsONgCMsLs7Et64hjj5VLMCA7np+4dMrZvGZ3wRNqzgeyT9oWJsUm49AcwSQ==
@@ -6824,7 +6846,7 @@ react-test-renderer@18.3.1:
     react-shallow-renderer "^16.15.0"
     scheduler "^0.23.2"
 
-react@*, "react@^16.0.0 || ^17.0.0 || ^18.0.0", "react@^16.6.0 || ^17.0.0 || ^18.0.0", "react@^16.8 || ^17.0 || ^18.0", "react@^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", react@^18.0.0, react@^18.2.0, react@^18.3.1, "react@>= 18.2.0", react@>=16.3.0, react@>=16.8, react@>=17.0.0, react@>=18.2.0, react@18.3.1:
+react@*, "react@^16.0.0 || ^17.0.0 || ^18.0.0", "react@^16.6.0 || ^17.0.0 || ^18.0.0", "react@^16.8 || ^17.0 || ^18.0", "react@^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", react@^18.0.0, react@^18.2.0, react@^18.3.1, "react@>= 17.0.1", "react@>= 18.2.0", react@>=16.3.0, react@>=16.8, react@>=17.0.0, react@>=18.2.0, react@18.3.1:
   version "18.3.1"
   resolved "https://registry.npmjs.org/react/-/react-18.3.1.tgz"
   integrity sha512-wS+hAgJShR0KhEvPJArfuPVN1+Hz1t0Y6n5jLrGQbkb4urgPE/0Rve+1kMB1v/oWgHgm4WIcV+i7F2pTVj+2iQ==

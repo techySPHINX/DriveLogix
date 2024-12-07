@@ -77,6 +77,11 @@ class DriverLocationUpdate(BaseModel):
     longitude: Optional[float]  # Optional
 
 
+class DriverReportSummary(BaseModel):
+    driver_id: int
+    driver_name: str
+    total_reports: int
+
 class TripBase(BaseModel):
     source: str
     destination: str

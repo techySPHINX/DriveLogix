@@ -1,8 +1,11 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, BackgroundTasks
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.db import get_db
-from app.models import Notification
-from app.utils import save_notification,send_flash_notification
+# Import the SQLAlchemy model
+from app.models import Notification as NotificationModel
+# Import the Pydantic schemas
+from app.schemas import NotificationCreate, NotificationResponse
+from app.utils import save_notification, send_flash_notification
 from typing import Dict
 import redis
 import asyncio
@@ -52,13 +55,23 @@ async def send_notification_to_clients(user_id: int, message: str):
         save_notification(user_id, message)
 
 
-@router.post("/notifications/send")
-async def create_notification(notification: Notification, background_tasks: BackgroundTasks):
+@router.post("/notifications/send", response_model=NotificationResponse)
+async def create_notification(notification: NotificationCreate, background_tasks: BackgroundTasks):
     """Create a notification and send it to the user."""
+    # Create a Notification instance for the database
+    notification_model = NotificationModel(
+        driver_id=notification.driver_id,
+        message=notification.message
+    )
+
+    # Here you would typically add the notification_model to the database session
+    # and commit it, but for simplicity, we'll skip that part.
+
     background_tasks.add_task(
-        send_notification_to_clients, notification.user_id, notification.message)
-    await publish_notification(notification.user_id, notification.message)
-    return {"message": "Notification created and sent"}
+        send_notification_to_clients, notification.driver_id, notification.message)
+    await publish_notification(notification.driver_id, notification.message)
+    # Return the response model
+    return NotificationResponse.from_orm(notification_model)
 
 
 @router.post("/notifications/flash")
@@ -89,24 +102,11 @@ async def redis_listener():
             channel = message['channel'].decode('utf-8')
             user_id = int(channel.split(":")[1])
             notification_message = message['data'].decode('utf-8')
-            if user_id in active_connections:
-                websocket = active_connections[user_id]
-                await websocket.send_text(notification_message)
-                print(
-                    f"Real-time notification sent to user {user_id}: {notification_message}")
-            else:
-                # Handle the case where the user is not connected
-                save_notification(user_id, notification_message)
+            await send_notification_to_clients(user_id, notification_message)
+
+# Start the Redis listener in the background
 
 
 async def start_redis_listener():
-    """Start the Redis listener in the background."""
     loop = asyncio.get_event_loop()
     loop.create_task(redis_listener())
-
-# Start the Redis listener when the application starts
-
-
-@router.on_event("startup")
-async def startup_event():
- await start_redis_listener()

@@ -3,10 +3,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.db import get_db
 from app import models, schemas
+from app.models import UserRole  # Ensure this import is correct
 from app.routes.auth import role_required
-from models import UserRole
 
 router = APIRouter()
+
 
 @router.get("/driver-reports", response_model=list[schemas.DriverReportSummary])
 async def get_driver_reports(
@@ -23,7 +24,7 @@ async def get_driver_reports(
             func.count(models.DelayReport.id).label("total_reports")
         )
         .join(models.DelayReport, models.User.id == models.DelayReport.driver_id, isouter=True)
-        .filter(models.User.role == "driver")
+        .filter(models.User.role == UserRole.DRIVER)  # Use UserRole enum
         .group_by(models.User.id)
         .order_by(func.count(models.DelayReport.id).desc())
         .all()

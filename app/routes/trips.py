@@ -44,7 +44,7 @@ async def create_trip(
     return {"message": "Trip created successfully", "trip_id": new_trip.id}
 
 
-@router.get("/{vehicle_id}") 
+@router.get("/{vehicle_id}")
 async def get_trips(vehicle_id: int, db: Session = Depends(get_db)):
     """Retrieve all trips assigned to a specific vehicle."""
     trips = db.query(models.Trip).filter(
@@ -160,31 +160,26 @@ async def check_trip_geofence(
     trip_id: int, driver_location: schemas.DriverLocationUpdate, db: Session = Depends(get_db)
 ):
     """Check if the driver has crossed the geofence boundary and notify the relevant admin to review the delay report."""
-    # Fetch the trip based on the provided trip_id
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
 
-    # Retrieve the associated geofences for the trip
     geofences = db.query(models.Geofence).all()
     violation_found = False
-    relevant_admins = set()  # Use a set to avoid duplicate admin notifications
+    relevant_admins = set()
 
     for geofence in geofences:
-        # Check if the driver crossed the geofence boundary
         if check_geofence(driver_location.lat, driver_location.lng, geofence):
             elapsed_time = datetime.utcnow() - driver_location.timestamp
             if elapsed_time.total_seconds() > geofence.allowed_time_to_cross * 60:
                 violation_found = True
 
-                # Send notification to the driver to fill the delay report
                 send_flash_notification(
                     trip.driver_id,
                     f"Geofence violation detected. Please fill out a delay report for 'Route Deviation'.",
                     db
                 )
 
-                # Optionally, create a "default" delay report with a default message
                 delay_report = DelayReport(
                     driver_id=trip.driver_id,
                     trip_id=trip.id,
@@ -194,19 +189,15 @@ async def check_trip_geofence(
                 db.add(delay_report)
                 db.commit()
 
-                # Find the admin who created the geofence or is related to the trip
-                # Option 1: Admin who created the geofence (assuming a `created_by` field in Geofence model)
-                if geofence.created_by:  # Assuming `created_by` field links geofence to the admin
+                if geofence.created_by:
                     relevant_admins.add(geofence.created_by)
 
-                # Option 2: Admin related to the trip (assuming the trip has an associated admin, e.g., `trip.admin_id`)
-                if trip.admin_id:  # Assuming `admin_id` exists in the Trip model
+                if trip.admin_id:
                     relevant_admins.add(trip.admin_id)
 
-                break  # Exit loop once a violation is detected
+                break
 
     if violation_found:
-        # Notify relevant admins about the violation and delay report
         for admin_id in relevant_admins:
             send_flash_notification(
                 admin_id,
@@ -225,7 +216,6 @@ async def find_nearby_drivers(
     trip_id: int, db: Session = Depends(get_db), user: models.User = Depends(role_required(UserRole.ADMIN))
 ):
     """Find drivers within a given radius of the trip destination and sort them by distance."""
-    # Fetch the trip details
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
@@ -233,7 +223,6 @@ async def find_nearby_drivers(
     destination_lat, destination_lng = trip.destination_lat, trip.destination_lng
     required_capacity = trip.required_capacity
 
-    # Fetch all drivers who meet the required capacity
     available_drivers = db.query(models.User, models.DriverLocation).join(
         models.DriverLocation, models.DriverLocation.user_id == models.User.id
     ).filter(
@@ -241,7 +230,6 @@ async def find_nearby_drivers(
         models.User.vehicle_capacity >= required_capacity
     ).all()
 
-    # Calculate distance for each driver and create a list
     driver_list = [
         {
             "driver_id": user.id,
@@ -253,7 +241,6 @@ async def find_nearby_drivers(
         for user, location in available_drivers
     ]
 
-    # Sort the drivers by distance in ascending order
     sorted_drivers = sorted(driver_list, key=lambda d: d["distance_to_trip"])
 
     if not sorted_drivers:
@@ -273,7 +260,7 @@ async def assign_trip_to_driver(
         raise HTTPException(status_code=404, detail="Trip not found")
 
     driver = db.query(models.User).filter(models.User.id ==
-                                          driver_id, models.User.is_driver == True).first()
+                      driver_id, models.User.is_driver == True).first()
     if not driver:
         raise HTTPException(status_code=404, detail="Driver not found")
 
@@ -297,13 +284,11 @@ async def assign_trip_to_driver(
         raise HTTPException(
             status_code=404, detail="Best route could not be determined")
 
-    # Assign the trip
     trip.driver_id = driver_id
     trip.route_details = best_route
     trip.status = "Assigned"
     db.commit()
 
-    # Send notification
     send_flash_notification(
         driver.id,
         f"You have been assigned to trip {
@@ -318,28 +303,25 @@ async def assign_trip_to_driver(
 async def get_trip_route(
     trip_id: int,
     db: Session = Depends(get_db),
-    user: models.User = Depends(role_required(UserRole.DRIVER)),    
+    user: models.User = Depends(role_required(UserRole.DRIVER)),
 ):
     """
     Retrieve the route details for a specific trip.
     """
     trip = db.query(models.Trip).filter(models.Trip.id ==
-                                        trip_id, models.Trip.driver_id == user.id).first()
+                    trip_id, models.Trip.driver_id == user.id).first()
     if not trip:
         raise HTTPException(
-            status_code=404, detail="Trip not found or not assigned to the driver"
-        )
+            status_code=404, detail="Trip not found or not assigned to the driver")
 
     if not trip.route_details:
         raise HTTPException(
-            status_code=400, detail="No route assigned for this trip"
-        )
+            status_code=400, detail="No route assigned for this trip")
 
     return {
         "trip_id": trip.id,
         "route_details": trip.route_details,
     }
-
 
 
 @router.put("/update_trip_status/{trip_id}")
@@ -348,12 +330,11 @@ def update_trip_status(
     status: str,
     db: Session = Depends(get_db)
 ):
-    trip = db.query(Trip).filter(Trip.id == trip_id).first()
+    trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
 
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
 
-    # If the status is 'Delayed', create a delay report
     if status.lower() == "delayed":
         delay_report = DelayReport(
             trip_id=trip.id,
@@ -379,27 +360,25 @@ async def start_geofence_timer(
     """
     Start a geofence timer for a trip and notify the admin once it stops.
     """
-    # Fetch the trip
-    trip = db.query(Trip).filter(Trip.id == trip_id).first()
+    trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
 
-    # Fetch the geofence
-    geofence = db.query(Geofence).filter(Geofence.id == geofence_id).first()
+    geofence = db.query(models.Geofence).filter(
+        models.Geofence.id == geofence_id).first()
     if not geofence:
         raise HTTPException(status_code=404, detail="Geofence not found")
 
-    # Ensure trip and geofence are linked or valid
     if trip.geofence_id != geofence.id:
         raise HTTPException(
             status_code=400,
             detail="The specified geofence is not linked to this trip."
         )
 
-    # Start the timer in an asynchronous task
     asyncio.create_task(geofence_timer(trip_id, geofence_id, db))
 
-    return {"message": f"Geofence timer started for trip ID {trip_id} and geofence ID {geofence_id}."}
+    return {"message": f"Geofence timer started for trip ID {trip_id} and geofence ID {geofence_id} ."}
+
 
 async def geofence_timer(trip_id: int, geofence_id: int, db: Session):
     """
@@ -408,20 +387,16 @@ async def geofence_timer(trip_id: int, geofence_id: int, db: Session):
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
-    await notify_admin_timer_stopped(trip_id, geofence_id, db)  # Implement this function to notify the admin
+
     geofence = db.query(models.Geofence).filter(
         models.Geofence.id == geofence_id).first()
     if not geofence:
         raise HTTPException(status_code=404, detail="Geofence not found")
 
-    # Start the timer
-    # Wait for the geofence time limit
     await asyncio.sleep(geofence.time_limit_minutes * 60)
 
-    # Notify the admin once the timer is stopped
-    notify_admin_timer_stopped()  # Implement this function to notify the admin
+    notify_admin_timer_stopped(trip_id, geofence_id, db)
 
-    # After the timer stops, check if the driver is inside the geofence
     await check_geofence(trip_id, db)
 
 
@@ -429,7 +404,6 @@ def notify_admin_timer_stopped(trip_id: int, geofence_id: int, db: Session):
     """
     Notify the admin that the geofence timer has stopped for a specific trip and geofence.
     """
-    # Fetch trip and admin details
     trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
     geofence = db.query(models.Geofence).filter(
         models.Geofence.id == geofence_id).first()
@@ -437,15 +411,11 @@ def notify_admin_timer_stopped(trip_id: int, geofence_id: int, db: Session):
     if not trip or not geofence:
         return
 
-    # Assuming trip.admin_id points to the admin responsible for the trip
     admin_id = trip.admin_id
     if not admin_id:
         return
 
-    # Send notification to the admin
     send_flash_notification(
         admin_id,
-        f"Geofence timer for trip '{
-            trip.id}' has ended. Please check the geofence status.",
-        db
+        f"Geofence timer for trip '{trip.id}' has ended. Please check the geofence status."
     )

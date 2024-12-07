@@ -10,7 +10,7 @@ type NavigationProps = StackNavigationProp<RootParamList, "OTPVerification">;
 const Login = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const navigation = useNavigation<NavigationProps>();
-
+  console.log(navigation.getState());
   const handleSendOTP = () => {
     if (phoneNumber.length !== 10 || isNaN(Number(phoneNumber))) {
       Alert.alert(
@@ -27,12 +27,11 @@ const Login = () => {
       Alert.alert("Success", `OTP sent to ${phoneNumber}.`);
 
       // Properly navigate to the OTPVerification screen with phoneNumber as param
-      navigation.navigate("OTPVerification", { phoneNumber });
+      
     } catch (error) {
       Alert.alert("Error", "Failed to send OTP. Please try again.");
     }
   };
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Login</Text>

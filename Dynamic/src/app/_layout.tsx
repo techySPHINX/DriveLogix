@@ -1,8 +1,8 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { NavigationContainer } from "@react-navigation/native";
-import TabsLayout from "./(tabs)/_layout"; // Tab Navigator
-import NotFoundScreen from "./+not-found"; // Optional "not found" screen
+import TabsLayout from "./(tabs)/_layout";
+import NotFoundScreen from "./+not-found"; 
 import { NavigationIndependentTree } from "@react-navigation/core";
 
 const Stack = createNativeStackNavigator();
