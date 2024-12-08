@@ -1,13 +1,17 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import AdminNavigator from "./admin/adminNavigator";
+import DriverNavigator from "./driver/driverNavigator";
 import Login from "./auth/login";
-import AdminDashboard from "./admin/dashboard";
+import LogoutScreen from "./auth/LogoutScreen";
+import { useAuth } from "../../context/AuthContext"; // Ensure this is imported
 import { Ionicons } from "@expo/vector-icons";
-import DriverHomeScreen from "./driver/DriverHomeScreen";
 
 const Tab = createBottomTabNavigator();
 
 const TabsLayout = () => {
+  const { user } = useAuth(); // Get user from AuthContext
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -20,34 +24,47 @@ const TabsLayout = () => {
             case "Driver":
               iconName = "car-outline";
               break;
-            case "Auth":
-              iconName = "log-in-outline";
+            case "Logout":
+              iconName = "log-out-outline";
               break;
             default:
-              return null;
+              iconName = "log-in-outline";
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: "blue", // Active tab icon color
-        tabBarInactiveTintColor: "gray", // Inactive tab icon color
-        headerShown: false, // Hide header for all tabs
+        tabBarActiveTintColor: "blue", // Active tab color
+        tabBarInactiveTintColor: "gray", // Inactive tab color
+        headerShown: false,
       })}
     >
-      <Tab.Screen
-        name="Admin"
-        component={AdminDashboard}
-        options={{ tabBarLabel: "Admin Panel" }}
-      />
-      <Tab.Screen
-        name="Driver"
-        component={DriverHomeScreen}
-        options={{ tabBarLabel: "Driver Screen" }}
-      />
-      <Tab.Screen
-        name="Auth"
-        component={Login}
-        options={{ tabBarLabel: "Login" }}
-      />
+      {/* Conditional rendering based on user role */}
+      {user?.role === "admin" ? (
+        <Tab.Screen
+          name="Admin"
+          component={AdminNavigator}
+          options={{ tabBarLabel: "Admin Panel" }}
+        />
+      ) : user?.role === "driver" ? (
+        <Tab.Screen
+          name="Driver"
+          component={DriverNavigator}
+          options={{ tabBarLabel: "Driver Panel" }}
+        />
+      ) : (
+        <Tab.Screen
+          name="Login"
+          component={Login}
+          options={{ tabBarLabel: "Login" }}
+        />
+      )}
+      {/* Logout tab */}
+      {user && (
+        <Tab.Screen
+          name="Logout"
+          component={LogoutScreen}
+          options={{ tabBarLabel: "Logout" }}
+        />
+      )}
     </Tab.Navigator>
   );
 };

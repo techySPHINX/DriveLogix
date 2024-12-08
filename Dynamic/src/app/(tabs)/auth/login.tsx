@@ -2,16 +2,19 @@ import React, { useState } from "react";
 import { View, Text, TextInput, Button, StyleSheet, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
-import { RootParamList } from "../../../navigation/type";
-import { requestOTP } from "../../../services/otpService";
+import { RootParamList } from "../../../navigation/type"; // Import type for the navigation params
+import { requestOTP } from "../../../services/otpService"; // Import the OTP service
 
+// Define the navigation prop type for OTPVerification screen
 type NavigationProps = StackNavigationProp<RootParamList, "OTPVerification">;
 
 const Login = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
-  const navigation = useNavigation<NavigationProps>();
-  console.log(navigation.getState());
+  const navigation = useNavigation<NavigationProps>(); // Use navigation hook
+
+  // Handle the OTP sending logic
   const handleSendOTP = () => {
+    // Validate the phone number
     if (phoneNumber.length !== 10 || isNaN(Number(phoneNumber))) {
       Alert.alert(
         "Invalid Input",
@@ -26,12 +29,13 @@ const Login = () => {
       console.log(result); // Debugging
       Alert.alert("Success", `OTP sent to ${phoneNumber}.`);
 
-      // Properly navigate to the OTPVerification screen with phoneNumber as param
-      
+      // Navigate to the OTPVerification screen with phoneNumber as a parameter
+      navigation.navigate("OTPVerification", { phoneNumber }); // Correct navigation
     } catch (error) {
       Alert.alert("Error", "Failed to send OTP. Please try again.");
     }
   };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Login</Text>

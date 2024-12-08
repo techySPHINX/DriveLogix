@@ -1,4 +1,3 @@
-// context/AuthContext.tsx
 import React, { createContext, useContext, useState } from "react";
 
 interface User {
@@ -24,7 +23,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = () => {
-    setUser(null);
+    setUser(null); // Clear the user data
   };
 
   return (
@@ -42,4 +41,4 @@ export const useAuth = () => {
   return context;
 };
 
-export default  AuthProvider;
+export default AuthProvider;
