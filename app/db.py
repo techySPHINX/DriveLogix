@@ -11,7 +11,6 @@ DATABASE_URL = os.getenv(
 # Create the synchronous engine
 engine = create_engine(DATABASE_URL)
 
-# Create a configured "Session" class for synchronous sessions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class for declarative models

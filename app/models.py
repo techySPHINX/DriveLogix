@@ -1,14 +1,13 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, Enum
+    Column, Integer, String, Float, Boolean, ForeignKey, DateTime, Text, Enum, UniqueConstraint
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from datetime import datetime
 import enum
 from app.db import Base
 
+
 # Enums for user roles and trip status
-
-
 class UserRole(enum.Enum):
     DRIVER = "driver"
     ADMIN = "admin"
@@ -21,9 +20,8 @@ class TripStatus(enum.Enum):
     COMPLETED = "Completed"
     CANCELED = "Canceled"
 
+
 # User model
-
-
 class User(Base):
     __tablename__ = "users"
 
@@ -32,8 +30,9 @@ class User(Base):
     email = Column(String(100), unique=True, nullable=False, index=True)
     phone_number = Column(String(15), unique=True, nullable=True)
     password = Column(String(128), nullable=False)
-    role = Column(Enum(UserRole), default=UserRole.DRIVER, nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
+    role = Column(Enum(UserRole), default=UserRole.DRIVER,
+                  nullable=False, index=True)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
 
     # Relationships
     vehicles = relationship("Vehicle", back_populates="driver")
@@ -46,12 +45,16 @@ class User(Base):
     trips_as_admin = relationship(
         "Trip", back_populates="admin", foreign_keys="Trip.admin_id")
 
+    @validates("email")
+    def validate_email(self, key, value):
+        assert "@" in value, "Invalid email address"
+        return value
+
     def __repr__(self):
         return f"<User (id={self.id}, name={self.name}, email={self.email}, role={self.role})>"
 
+
 # Vehicle model
-
-
 class Vehicle(Base):
     __tablename__ = "vehicles"
 
@@ -65,24 +68,27 @@ class Vehicle(Base):
     driver = relationship("User", back_populates="vehicles")
     trips = relationship("Trip", back_populates="vehicle")
 
+    @validates("remaining_tonnage")
+    def validate_remaining_tonnage(self, key, value):
+        assert value >= 0, "Remaining tonnage cannot be negative"
+        return value
+
+
 # DriverLocation model
-
-
 class DriverLocation(Base):
     __tablename__ = "driver_locations"
 
     id = Column(Integer, primary_key=True, index=True)
     driver_id = Column(Integer, ForeignKey(
-        "users.id", ondelete="CASCADE"), nullable=False, index=True)
+        "users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     driver = relationship("User", back_populates="location")
 
+
 # Geofence model
-
-
 class Geofence(Base):
     __tablename__ = "geofences"
 
@@ -92,9 +98,8 @@ class Geofence(Base):
     radius = Column(Float, nullable=False)
     time_limit_minutes = Column(Integer, nullable=False)
 
+
 # Trip model
-
-
 class Trip(Base):
     __tablename__ = "trips"
 
@@ -107,8 +112,8 @@ class Trip(Base):
         "users.id", ondelete="SET NULL"), nullable=True, index=True)
     source = Column(String(100), nullable=False)
     destination = Column(String(100), nullable=False)
-    status = Column(Enum(TripStatus),
-                    default=TripStatus.PENDING, nullable=False)
+    status = Column(Enum(TripStatus), default=TripStatus.PENDING,
+                    nullable=False, index=True)
     expected_arrival = Column(DateTime, nullable=True)
     next_halt = Column(String, nullable=True)
     safety_info = Column(String, nullable=True)
@@ -126,9 +131,8 @@ class Trip(Base):
     delay_reports = relationship(
         "DelayReport", back_populates="trip", cascade="all, delete")
 
+
 # IntermediateDestination model
-
-
 class IntermediateDestination(Base):
     __tablename__ = "intermediate_destinations"
 
@@ -140,9 +144,12 @@ class IntermediateDestination(Base):
 
     trip = relationship("Trip", back_populates="intermediate_destinations")
 
+    __table_args__ = (
+        UniqueConstraint("trip_id", "sequence", name="unique_trip_sequence"),
+    )
+
+
 # Notification model
-
-
 class Notification(Base):
     __tablename__ = "notifications"
 
@@ -158,9 +165,8 @@ class Notification(Base):
     driver = relationship("User", back_populates="notifications")
     admin = relationship("User")
 
+
 # DelayReport model
-
-
 class DelayReport(Base):
     __tablename__ = "delay_reports"
 
@@ -175,3 +181,8 @@ class DelayReport(Base):
 
     driver = relationship("User", back_populates="delay_reports")
     trip = relationship("Trip", back_populates="delay_reports")
+
+    __table_args__ = (
+        UniqueConstraint("driver_id", "trip_id",
+                         name="unique_driver_trip_report"),
+    )
