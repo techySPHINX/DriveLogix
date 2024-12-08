@@ -7,6 +7,7 @@ import {
   FlatList,
   StyleSheet,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native"; // Import navigation hook
 import { adminTripService } from "../../../services/adminTripService";
 
 const CreateTripScreen = () => {
@@ -17,6 +18,8 @@ const CreateTripScreen = () => {
     string[]
   >([]);
   const [newDestination, setNewDestination] = useState("");
+
+  const navigation = useNavigation(); // Initialize navigation
 
   const addIntermediateDestination = () => {
     if (newDestination) {
@@ -67,7 +70,7 @@ const CreateTripScreen = () => {
         onChangeText={setNewDestination}
       />
       <Button
-        title="Add Intermediate Destination"
+        title="Add IntermediateDest"
         onPress={addIntermediateDestination}
       />
       <FlatList
@@ -76,6 +79,12 @@ const CreateTripScreen = () => {
         renderItem={({ item }) => <Text>{item}</Text>}
       />
       <Button title="Create Trip" onPress={createTrip} />
+
+      {/* Navigate to AssignTripScreen */}
+      <Button
+        title="Assign Trip"
+        onPress={() => navigation.navigate("AssignTripScreen" as never)}
+      />
     </View>
   );
 };
@@ -86,4 +95,4 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: "#ccc", padding: 8, marginBottom: 12 },
 });
 
-export default CreateTripScreen; 
+export default CreateTripScreen;

@@ -34,12 +34,17 @@ class User(Base):
     password = Column(String(128), nullable=False)
     role = Column(Enum(UserRole), default=UserRole.DRIVER, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+
     # Relationships
     vehicles = relationship("Vehicle", back_populates="driver")
     location = relationship(
         "DriverLocation", uselist=False, back_populates="driver")
-    
     delay_reports = relationship("DelayReport", back_populates="driver")
+    notifications = relationship("Notification", back_populates="driver")
+    trips_as_driver = relationship(
+        "Trip", back_populates="driver", foreign_keys="Trip.driver_id")
+    trips_as_admin = relationship(
+        "Trip", back_populates="admin", foreign_keys="Trip.admin_id")
 
     def __repr__(self):
         return f"<User (id={self.id}, name={self.name}, email={self.email}, role={self.role})>"
@@ -55,9 +60,10 @@ class Vehicle(Base):
     total_tonnage = Column(Float, nullable=False)
     remaining_tonnage = Column(Float, nullable=False)
     driver_id = Column(Integer, ForeignKey(
-        "users.id", ondelete="SET NULL"), index=True)
+        "users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     driver = relationship("User", back_populates="vehicles")
+    trips = relationship("Trip", back_populates="vehicle")
 
 # DriverLocation model
 
@@ -67,7 +73,7 @@ class DriverLocation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     driver_id = Column(Integer, ForeignKey(
-        "users.id", ondelete="CASCADE"), index=True)
+        "users.id", ondelete="CASCADE"), nullable=False, index=True)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
@@ -94,11 +100,11 @@ class Trip(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     vehicle_id = Column(Integer, ForeignKey(
-        "vehicles.id", ondelete="SET NULL"), index=True)
+        "vehicles.id", ondelete="SET NULL"), nullable=True, index=True)
     driver_id = Column(Integer, ForeignKey(
-        "users.id", ondelete="SET NULL"), index=True)
+        "users.id", ondelete="SET NULL"), nullable=True, index=True)
     admin_id = Column(Integer, ForeignKey(
-        "users.id", ondelete="SET NULL"), index=True)
+        "users.id", ondelete="SET NULL"), nullable=True, index=True)
     source = Column(String(100), nullable=False)
     destination = Column(String(100), nullable=False)
     status = Column(Enum(TripStatus),
@@ -110,42 +116,29 @@ class Trip(Base):
     upvotes = Column(Integer, default=0)
     downvotes = Column(Integer, default=0)
 
-    intermediate_destinations = relationship(
-        "IntermediateDestination", back_populates="trips")
-    admin = relationship("User", foreign_keys=[
-                         admin_id], back_populates="trips")
     vehicle = relationship("Vehicle", back_populates="trips")
-    driver = relationship("User", foreign_keys=[
-                          driver_id], back_populates="trips")
-    delay_reports = relationship("DelayReport", back_populates="trips")
+    driver = relationship(
+        "User", back_populates="trips_as_driver", foreign_keys=[driver_id])
+    admin = relationship(
+        "User", back_populates="trips_as_admin", foreign_keys=[admin_id])
+    intermediate_destinations = relationship(
+        "IntermediateDestination", back_populates="trip", cascade="all, delete")
+    delay_reports = relationship(
+        "DelayReport", back_populates="trip", cascade="all, delete")
 
 # IntermediateDestination model
 
 
-# class IntermediateDestination(Base):
-#     __tablename__ = "intermediate_destinations"
-
-#     id = Column(Integer, primary_key=True, index=True)
-#     trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), index=True)
-#     destination = Column(String(100), nullable=False)
-#     sequence = Column(Integer, nullable=False)
-
-#     # Add this relationship to link back to Trip
-#     trip = relationship("Trip", back_populates="intermediate_destinations")
 class IntermediateDestination(Base):
     __tablename__ = "intermediate_destinations"
 
     id = Column(Integer, primary_key=True, index=True)
     trip_id = Column(Integer, ForeignKey(
-        "trips.id", ondelete="CASCADE"), index=True)
+        "trips.id", ondelete="CASCADE"), nullable=False, index=True)
     destination = Column(String(100), nullable=False)
     sequence = Column(Integer, nullable=False)
 
-    # Add this relationship to link back to Trip
     trip = relationship("Trip", back_populates="intermediate_destinations")
-
-
-
 
 # Notification model
 
@@ -155,15 +148,15 @@ class Notification(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     driver_id = Column(Integer, ForeignKey(
-        "users.id", ondelete="CASCADE"), index=True)
+        "users.id", ondelete="CASCADE"), nullable=False, index=True)
+    admin_id = Column(Integer, ForeignKey(
+        "users.id", ondelete="CASCADE"), nullable=True, index=True)
     message = Column(String(255), nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
     is_read = Column(Boolean, default=False)
-    admin_id = Column(Integer, ForeignKey(
-        "users.id", ondelete="CASCADE"), index=True)
 
-    admin = relationship("User", foreign_keys=[admin_id])
     driver = relationship("User", back_populates="notifications")
+    admin = relationship("User")
 
 # DelayReport model
 
@@ -173,9 +166,9 @@ class DelayReport(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     driver_id = Column(Integer, ForeignKey(
-        "users.id", ondelete="CASCADE"), index=True)
+        "users.id", ondelete="CASCADE"), nullable=False, index=True)
     trip_id = Column(Integer, ForeignKey(
-        "trips.id", ondelete="CASCADE"), index=True)
+        "trips.id", ondelete="CASCADE"), nullable=False, index=True)
     reason = Column(String(255), nullable=False)
     custom_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import StatusScreen from "./StatusScreen";
 import TripScreen from "./Tripscreen";
 import DriverHomeScreen from "./DriverHomeScreen";
-import DriverLocationScreen from "./DriverLocationScreen";
+import DriverLocationScreen from "../admin/DriverLocationScreen";
 
 const Tab = createBottomTabNavigator();
 
