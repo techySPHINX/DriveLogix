@@ -9,4 +9,6 @@ alembic==1.9.3
 clerk
 python-jose
 asyncio
+twilio
+redis
 

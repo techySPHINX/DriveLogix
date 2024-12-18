@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.db import get_db
 from app import models, schemas
-from app.models import UserRole  # Ensure this import is correct
+from app.models import UserRole  
 from app.routes.auth import role_required
 
 router = APIRouter()
