@@ -1,7 +1,7 @@
 import { verifyOTP } from "./mockAPI";
 
 export const mockUsers = [
-  { id: 1, phone: "1234567890", role: "admin", otp: "123456" },
+  { id: 1, phone: "12345", role: "admin", otp: "12345" },
   { id: 2, phone: "0987654321", role: "driver", otp: "654321" },
   // Add 8 more users
   { id: 3, phone: "1111111111", role: "driver", otp: "111111" },

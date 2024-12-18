@@ -1,16 +1,25 @@
 import React from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { Text, Card, Button, List } from "react-native-paper";
-import { useNavigation } from "@react-navigation/native";
+import {
+  NavigationIndependentTree,
+  useNavigation,
+  NavigationContainer,
+} from "@react-navigation/native";
+import DriverLocationScreen from "./DriverLocationScreen";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import MisReportScreen from "./MISReportScreen";
+
+const Stack = createNativeStackNavigator();
 
 const AdminDashboard = () => {
   const navigation = useNavigation();
 
   // Mock data
   const metrics = {
-    totalTrips: 256,
-    totalDrivers: 120,
-    successfulTrips: 200,
+    totalTrips: 34,
+    totalDrivers: 10,
+    successfulTrips: 20,
     futureTrips: 56,
   };
 
@@ -23,7 +32,7 @@ const AdminDashboard = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.header}>Admin Dashboard</Text>
+      <Text style={styles.header}>Your's Dashboard</Text>
 
       {/* Metrics Cards */}
       <View style={styles.metricsContainer}>
@@ -70,13 +79,24 @@ const AdminDashboard = () => {
       {/* Navigation Button */}
       <Button
         mode="contained"
-        onPress={() => navigation.navigate("DriverLocationScreen" as never)}
+        onPress={() => navigation.navigate("MisReportScreen" as never)}
         style={styles.navigateButton}
         labelStyle={styles.buttonLabel}
       >
-        Go to Driver Location Screen
+        Generate MIS
       </Button>
     </ScrollView>
+  );
+};
+const AdminStack = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName="dashboard"
+    >
+      <Stack.Screen name="dashboard" component={AdminDashboard} />
+      <Stack.Screen name="MisReportScreen" component={MisReportScreen} />
+    </Stack.Navigator>
   );
 };
 
@@ -156,4 +176,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AdminDashboard;
+export default AdminStack;

@@ -6,6 +6,7 @@ import Login from "./auth/login";
 import LogoutScreen from "./auth/LogoutScreen";
 import { useAuth } from "../../context/AuthContext"; // Ensure this is imported
 import { Ionicons } from "@expo/vector-icons";
+import { useContext } from "react";
 
 const Tab = createBottomTabNavigator();
 

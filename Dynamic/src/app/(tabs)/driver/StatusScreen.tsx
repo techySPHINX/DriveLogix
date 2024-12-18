@@ -44,7 +44,10 @@ const StatusScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+    >
       <Animatable.Text animation="fadeInDown" style={styles.header}>
         Current Status:{" "}
         <Text
@@ -65,8 +68,9 @@ const StatusScreen = () => {
               styles.card,
               currentStatus === key && { backgroundColor: color },
             ]}
+            elevation={5}
           >
-            <Card.Content>
+            <Card.Content style={styles.cardContent}>
               <Text
                 style={[
                   styles.statusText,
@@ -79,8 +83,13 @@ const StatusScreen = () => {
                 mode={currentStatus === key ? "contained" : "outlined"}
                 onPress={() => handleStatusChange(key)}
                 style={styles.button}
+                labelStyle={
+                  currentStatus === key
+                    ? styles.buttonLabelActive
+                    : styles.buttonLabel
+                }
               >
-                Select
+                {currentStatus === key ? "Selected" : "Select"}
               </Button>
             </Card.Content>
           </Card>
@@ -91,6 +100,7 @@ const StatusScreen = () => {
         visible={snackbarVisible}
         onDismiss={() => setSnackbarVisible(false)}
         duration={2000}
+        style={styles.snackbar}
       >
         Status updated successfully!
       </Snackbar>
@@ -99,17 +109,46 @@ const StatusScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: "#f7f7f7" },
+  contentContainer: { padding: 20, alignItems: "center" },
   header: {
-    fontSize: 24,
+    fontSize: 26,
     textAlign: "center",
     marginVertical: 20,
     fontWeight: "bold",
   },
-  statusContainer: { paddingVertical: 20 },
-  card: { marginVertical: 10, padding: 10 },
-  statusText: { fontSize: 18, textAlign: "center", marginBottom: 10 },
-  button: { alignSelf: "center" },
+  statusContainer: { width: "100%" },
+  card: {
+    marginVertical: 15,
+    borderRadius: 15,
+    overflow: "hidden",
+  },
+  cardContent: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  statusText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 15,
+  },
+  button: {
+    width: "80%",
+    marginTop: 10,
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  buttonLabelActive: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  snackbar: {
+    backgroundColor: "#4caf50",
+  },
 });
 
 export default StatusScreen;

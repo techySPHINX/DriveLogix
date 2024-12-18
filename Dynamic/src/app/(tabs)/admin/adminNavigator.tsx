@@ -1,10 +1,14 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import AdminDashboard from "./dashboard";
+import AdminStack from "./dashboard";
 import TripManagementScreen from "./TripManagementScreen";
-import GeofenceManagementScreen from "./GeoFenceManageMent";
-import CreateTripScreen from "./CreateTripScreen";
-import { MaterialCommunityIcons } from "react-native-vector-icons";
+import GeoFenceManagementScreen from "./GeoFenceManageMent";
+import CreateTripScreen from "./CreateTripScreen"; // Ensure CreateTripScreen is a valid React component
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import DriverLocationScreen from "./DriverLocationScreen";
+import LogoutScreen from "../auth/LogoutScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -18,7 +22,7 @@ const AdminNavigator = () => (
   >
     <Tab.Screen
       name="Dashboard"
-      component={AdminDashboard}
+      component={AdminStack}
       options={{
         tabBarLabel: "Dashboard",
         tabBarIcon: ({ color, size }) => (
@@ -46,7 +50,7 @@ const AdminNavigator = () => (
     />
     <Tab.Screen
       name="Geofence Management"
-      component={GeofenceManagementScreen}
+      component={GeoFenceManagementScreen}
       options={{
         tabBarLabel: "Geofence",
         tabBarIcon: ({ color, size }) => (
@@ -58,6 +62,7 @@ const AdminNavigator = () => (
         ),
       }}
     />
+    
     <Tab.Screen
       name="Trip Management"
       component={TripManagementScreen}
@@ -65,6 +70,16 @@ const AdminNavigator = () => (
         tabBarLabel: "Trip Management",
         tabBarIcon: ({ color, size }) => (
           <MaterialCommunityIcons name="car" color={color} size={size} />
+        ),
+      }}
+    />
+    <Tab.Screen
+      name="Logout"
+      component={LogoutScreen}
+      options={{
+        tabBarLabel: "Log out",
+        tabBarIcon: ({ color, size }) => (
+          <MaterialCommunityIcons name="logout" color={color} size={size} />
         ),
       }}
     />

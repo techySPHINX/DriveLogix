@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 load_dotenv()
 MAPMYINDIA_API_KEY = os.getenv("MAPMYINDIA_API_KEY")
 
-
 SECRET_KEY = os.getenv("SECRET_KEY", "your_secret_key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -23,7 +22,6 @@ def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 # Function to hash a password
-
 
 def get_password_hash(password):
     return pwd_context.hash(password)

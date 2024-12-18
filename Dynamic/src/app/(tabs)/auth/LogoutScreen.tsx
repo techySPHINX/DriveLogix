@@ -11,7 +11,7 @@ const LogoutScreen = () => {
     logout();
 
     // Redirect to the login screen after logout
-    navigation.navigate("Login");
+    // navigation.navigate("Login");
   }, [logout, navigation]);
 
   return null; // You can display a loading spinner or something while logging out

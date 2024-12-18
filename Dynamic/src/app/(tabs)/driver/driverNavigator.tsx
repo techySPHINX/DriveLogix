@@ -46,28 +46,28 @@ const DriverNavigator = () => {
       <Tab.Screen
         name="DriverHomeScreen"
         component={DriverHomeScreen}
-        options={{ tabBarLabel: "Home" }}
+        options={{ tabBarLabel: "Home", headerShown: false }}
       />
 
       {/* Status Screen */}
       <Tab.Screen
         name="StatusScreen"
         component={StatusScreen}
-        options={{ tabBarLabel: "Status" }}
+        options={{ tabBarLabel: "Status", headerShown: false }}
       />
 
       {/* Trip Screen */}
       <Tab.Screen
         name="TripScreen"
         component={TripScreen}
-        options={{ tabBarLabel: "Trips" }}
+        options={{ tabBarLabel: "Trips", headerShown: false }}
       />
 
       {/* Driver Location Screen */}
       <Tab.Screen
         name="DriverLocationScreen"
         component={DriverLocationScreen}
-        options={{ tabBarLabel: "Location" }}
+        options={{ tabBarLabel: "Location", headerShown: false }}
       />
     </Tab.Navigator>
   );

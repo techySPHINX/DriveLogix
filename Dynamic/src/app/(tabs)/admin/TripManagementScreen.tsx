@@ -1,18 +1,31 @@
 import React, { useState } from "react";
 import {
   View,
-  Text,
-  Button,
   StyleSheet,
-  TextInput,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
+import {
+  Text,
+  TextInput,
+  Button,
+  Card,
+  Title,
+  Paragraph,
+  IconButton,
+  Menu,
+  FAB,
+  Provider,
+} from "react-native-paper";
+import { LinearGradient } from "expo-linear-gradient";
+
 import managetripService from "../../../services/managetripService";
 
 const TripManagementScreen = () => {
-  const [driverId, setDriverId] = useState("");
   const [tripId, setTripId] = useState("");
   const [status, setStatus] = useState("");
+  const [tripsVisible, setTripsVisible] = useState(false);
   const [assignedDriver, setAssignedDriver] = useState<{
     id: number;
     name: string;
@@ -27,6 +40,8 @@ const TripManagementScreen = () => {
       endLocation: "City B",
       status: "Pending",
       tonnage: 10,
+      upvotes: 0,
+      downvotes: 0,
     },
     {
       id: 2,
@@ -35,6 +50,8 @@ const TripManagementScreen = () => {
       endLocation: "City D",
       status: "In-Route",
       tonnage: 15,
+      upvotes: 0,
+      downvotes: 0,
     },
     {
       id: 3,
@@ -43,24 +60,12 @@ const TripManagementScreen = () => {
       endLocation: "City F",
       status: "Delivered",
       tonnage: 8,
-    },
-    {
-      id: 4,
-      vehicleId: 104,
-      startLocation: "City G",
-      endLocation: "City H",
-      status: "Pending",
-      tonnage: 20,
-    },
-    {
-      id: 5,
-      vehicleId: 105,
-      startLocation: "City I",
-      endLocation: "City J",
-      status: "Pending",
-      tonnage: 12,
+      upvotes: 0,
+      downvotes: 0,
     },
   ]);
+
+  const [menuVisible, setMenuVisible] = useState(false);
 
   const handleAssignTrip = async () => {
     if (!tripId) {
@@ -73,17 +78,16 @@ const TripManagementScreen = () => {
     } else {
       alert("Failed to assign trip to driver.");
     }
-    alert("Trip assigned to driver!");
   };
 
-  const handleUpdateStatus = async () => {
-    if (!tripId || !status) {
-      alert("Please enter a Trip ID and select a status");
+  const handleUpdateStatus = async (newStatus: string) => {
+    if (!tripId) {
+      alert("Please enter a Trip ID");
       return;
     }
     const updatedTrip = await managetripService.updateStatus(
       Number(tripId),
-      status
+      newStatus
     );
     if (updatedTrip) {
       setTripList((prevTrips) =>
@@ -93,108 +97,223 @@ const TripManagementScreen = () => {
             : trip
         )
       );
-      alert(`Trip ${tripId} status updated to ${status}`);
+      alert(`Trip ${tripId} status updated to ${newStatus}`);
+      setStatus("");
     } else {
       alert("Failed to update trip status.");
     }
-    alert(`Trip ${tripId} status updated to ${status}`);
+  };
+
+  const handleVote = (tripId: number, type: "upvote" | "downvote") => {
+    setTripList((prevTrips) =>
+      prevTrips.map((trip) =>
+        trip.id === tripId
+          ? {
+              ...trip,
+              upvotes: type === "upvote" ? trip.upvotes + 1 : trip.upvotes,
+              downvotes:
+                type === "downvote" ? trip.downvotes + 1 : trip.downvotes,
+            }
+          : trip
+      )
+    );
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Trip Management</Text>
+    <Provider>
+      <LinearGradient
+        colors={["#A9DFBF", "#58D68D"]} // Light Green Gradient
+        style={styles.gradientBackground}
+      >
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <Text style={styles.title}>🚚 Trip Management</Text>
 
-      {/* Assign Trip Section */}
-      <Text>Assign Trip to Driver</Text>
-      <TextInput
-        placeholder="Trip ID"
-        value={tripId}
-        onChangeText={setTripId}
-        style={styles.input}
-        keyboardType="numeric"
-      />
-      <Button title="Assign Trip" onPress={handleAssignTrip} />
+          {/* Assign Trip Section */}
+          <Card style={styles.card}>
+            <Card.Content>
+              <Title style={styles.sectionTitle}>Assign Trip</Title>
+              <TextInput
+                label="Trip ID"
+                value={tripId}
+                onChangeText={setTripId}
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <Button
+                mode="contained"
+                icon="account-arrow-right"
+                style={styles.button}
+                onPress={handleAssignTrip}
+              >
+                Assign Trip
+              </Button>
+              {assignedDriver && (
+                <Paragraph style={styles.driverInfo}>
+                  Assigned Driver:{" "}
+                  <Text style={styles.highlight}>{assignedDriver.name}</Text>
+                  {"\n"}Location:{" "}
+                  <Text style={styles.highlight}>
+                    {assignedDriver.location}
+                  </Text>
+                </Paragraph>
+              )}
+            </Card.Content>
+          </Card>
 
-      {assignedDriver && (
-        <View style={styles.driverInfo}>
-          <Text>Assigned Driver: {assignedDriver.name}</Text>
-          <Text>Driver Location: {assignedDriver.location}</Text>
-        </View>
-      )}
+          {/* Update Status Section */}
+          <Card style={styles.card}>
+            <Card.Content>
+              <Title style={styles.sectionTitle}>Update Status</Title>
+              <TextInput
+                label="Trip ID"
+                value={tripId}
+                onChangeText={setTripId}
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <Menu
+                visible={menuVisible}
+                onDismiss={() => setMenuVisible(false)}
+                anchor={
+                  <Button
+                    mode="contained"
+                    icon="menu-down"
+                    style={styles.button}
+                    onPress={() => setMenuVisible(true)}
+                  >
+                    {status || "Select Status"}
+                  </Button>
+                }
+              >
+                {["Delivered", "Delayed", "In-Route", "Pending"].map(
+                  (option) => (
+                    <Menu.Item
+                      key={option}
+                      onPress={() => {
+                        setStatus(option);
+                        setMenuVisible(false);
+                      }}
+                      title={option}
+                    />
+                  )
+                )}
+              </Menu>
+              <Button
+                mode="contained"
+                icon="check-circle-outline"
+                style={styles.button}
+                onPress={() => handleUpdateStatus(status)}
+              >
+                Update Status
+              </Button>
+            </Card.Content>
+          </Card>
 
-      {/* Update Status Section */}
-      <Text>Update Trip Status</Text>
-      <TextInput
-        placeholder="Trip ID"
-        value={tripId}
-        onChangeText={setTripId}
-        style={styles.input}
-        keyboardType="numeric"
-      />
-      <TextInput
-        placeholder="Status (Pending, In-Route, Delivered)"
-        value={status}
-        onChangeText={setStatus}
-        style={styles.input}
-      />
-      <Button title="Update Status" onPress={handleUpdateStatus} />
-
-      {/* List of Trips */}
-      <Text style={styles.subTitle}>Trips</Text>
-      <FlatList
-        data={tripList}
-        renderItem={({ item }) => (
-          <View style={styles.tripCard}>
-            <Text>Trip ID: {item.id}</Text>
-            <Text>
-              From: {item.startLocation} to {item.endLocation}
-            </Text>
-            <Text>Status: {item.status}</Text>
-            <Text>Tonnage: {item.tonnage} tons</Text>
-          </View>
-        )}
-        keyExtractor={(item) => item.id.toString()}
-      />
-    </View>
+          {/* List of Trips */}
+          {tripsVisible && (
+            <FlatList
+              data={tripList}
+              renderItem={({ item }) => (
+                <Card style={styles.tripCard}>
+                  <Card.Content>
+                    <Title style={styles.tripTitle}>Trip ID: {item.id}</Title>
+                    <Paragraph>
+                      🚩 From: {item.startLocation} ➡️ {item.endLocation}
+                      {"\n"}📦 Status:{" "}
+                      <Text style={styles.highlight}>{item.status}</Text>
+                      {"\n"}⚖️ Tonnage: {item.tonnage} tons
+                      {"\n"}👍 Upvotes: {item.upvotes} 👎 Downvotes:{" "}
+                      {item.downvotes}
+                    </Paragraph>
+                    <View style={styles.container}>
+                      <IconButton
+                        icon="thumb-up"
+                        onPress={() => handleVote(item.id, "upvote")}
+                      />
+                      <IconButton
+                        icon="thumb-down"
+                        onPress={() => handleVote(item.id, "downvote")}
+                      />
+                    </View>
+                  </Card.Content>
+                </Card>
+              )}
+              keyExtractor={(item) => item.id.toString()}
+            />
+          )}
+        </KeyboardAvoidingView>
+        <FAB
+          style={styles.fab}
+          icon={tripsVisible ? "eye-off" : "eye"}
+          onPress={() => setTripsVisible(!tripsVisible)}
+        />
+      </LinearGradient>
+    </Provider>
   );
 };
 
 const styles = StyleSheet.create({
+  gradientBackground: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#f5f5f5",
   },
   title: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: "bold",
+    color: "#fff",
     textAlign: "center",
-    marginVertical: 20,
+    marginBottom: 20,
   },
-  subTitle: {
-    fontSize: 18,
+  sectionTitle: {
+    fontSize: 20,
     fontWeight: "bold",
-    marginTop: 20,
+    color: "#333",
   },
   input: {
-    borderWidth: 1,
-    padding: 10,
-    marginVertical: 10,
-    borderRadius: 5,
+    marginBottom: 15,
+    backgroundColor: "#fff",
   },
-  driverInfo: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: "#e0e0e0",
-    borderRadius: 5,
+  button: {
+    marginTop: 10,
+    backgroundColor: "#58D68D", // Light green color
+  },
+  card: {
+    marginVertical: 10,
+    borderRadius: 10,
+    elevation: 4,
+    backgroundColor: "#f7f9f9",
   },
   tripCard: {
     marginVertical: 10,
-    padding: 15,
-    backgroundColor: "#fff",
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: "#ddd",
+    borderRadius: 10,
+    elevation: 3,
+    backgroundColor: "#f7ea62", // Light blue card background
+  },
+  tripTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#ffffff", // Darker text for readability
+  },
+  driverInfo: {
+    marginTop: 10,
+    fontWeight: "600",
+  },
+  highlight: {
+    color: "#58D68D", // Highlight with green
+    fontWeight: "bold",
+  },
+  fab: {
+    position: "absolute",
+    margin: 16,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#58D68D", // Matching FAB color
   },
 });
 

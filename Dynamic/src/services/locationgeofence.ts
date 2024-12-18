@@ -1,13 +1,75 @@
-// Mocked service for geofence creation
+// Import or define required types/interfaces
+interface Geofence {
+  id: number;
+  latitude: number;
+  longitude: number;
+  radius: number;
+  time_limit_minutes: number;
+  name: string;
+}
+
+interface DriverLocation {
+  userId: number;
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+}
+
+interface GeofenceViolation {
+  geofenceId: number;
+  isViolation: boolean;
+}
+
+// Mock data
+let geofences: Geofence[] = [
+  {
+    id: 1,
+    latitude: 22.5726, // Kolkata
+    longitude: 88.3639,
+    radius: 1000, // in meters
+    time_limit_minutes: 30,
+    name: "Kolkata Geofence",
+  },
+  {
+    id: 2,
+    latitude: 21.9146, // Kharagpur
+    longitude: 87.3294,
+    radius: 1500, // in meters
+    time_limit_minutes: 40,
+    name: "Kharagpur Geofence",
+  },
+  {
+    id: 3,
+    latitude: 21.4935, // Balasore
+    longitude: 86.9337,
+    radius: 800, // in meters
+    time_limit_minutes: 20,
+    name: "Balasore Geofence",
+  },
+  {
+    id: 4,
+    latitude: 20.2961, // Bhubaneswar
+    longitude: 85.8245,
+    radius: 1200, // in meters
+    time_limit_minutes: 60,
+    name: "Bhubaneswar Geofence",
+  },
+];
+
+const driverLocations: DriverLocation[] = [];
+
+// Services
+
+// Create a new geofence
 export const createGeofence = async (data: {
   latitude: number;
   longitude: number;
   radius: number;
   time_limit_minutes: number;
-}) => {
+}): Promise<Geofence> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      const newGeofence = {
+      const newGeofence: Geofence = {
         id: Math.floor(Math.random() * 1000),
         latitude: data.latitude,
         longitude: data.longitude,
@@ -15,129 +77,76 @@ export const createGeofence = async (data: {
         time_limit_minutes: data.time_limit_minutes,
         name: `Geofence_${data.latitude}_${data.longitude}`,
       };
-
+      geofences.push(newGeofence);
       resolve(newGeofence);
     }, 1000); // Simulate API delay
   });
 };
 
-// Mocked service for driver location update
-export const updateDriverLocation = async (
-  userId: number,
-  latitude: number,
-  longitude: number
-) => {
+// Fetch all geofences
+export const getGeofences = async (): Promise<Geofence[]> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      const location = {
-        userId,
-        latitude,
-        longitude,
-        timestamp: new Date().toISOString(),
-      };
-
-      resolve(location);
-    }, 1000); // Simulate API delay
-  });
-};
-
-// Mock service to get all geofences
-export const getGeofences = async () => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const geofences = [
-        {
-          id: 1,
-          latitude: 37.7749,
-          longitude: -122.4194,
-          radius: 1000,
-          time_limit_minutes: 30,
-          name: "San Francisco Geofence",
-        },
-        {
-          id: 2,
-          latitude: 34.0522,
-          longitude: -118.2437,
-          radius: 1500,
-          time_limit_minutes: 40,
-          name: "Los Angeles Geofence",
-        },
-        {
-          id: 3,
-          latitude: 40.7128,
-          longitude: -74.006,
-          radius: 800,
-          time_limit_minutes: 20,
-          name: "New York Geofence",
-        },
-        {
-          id: 4,
-          latitude: 51.5074,
-          longitude: -0.1278,
-          radius: 1200,
-          time_limit_minutes: 60,
-          name: "London Geofence",
-        },
-      ];
       resolve(geofences);
     }, 1000); // Simulate API delay
   });
 };
 
-// Mock service to simulate driver location fetching
-export const getDriverLocation = async (userId: number) => {
+// Delete a geofence by ID
+export const deleteGeofence = async (geofenceId: number): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const index = geofences.findIndex((g) => g.id === geofenceId);
+      if (index !== -1) {
+        geofences.splice(index, 1);
+        resolve();
+      } else {
+        reject(new Error("Geofence not found"));
+      }
+    }, 500); // Simulate API delay
+  });
+};
+
+// Update driver location
+export const updateDriverLocation = async (
+  userId: number,
+  latitude: number,
+  longitude: number
+): Promise<DriverLocation> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      const locations = [
-        {
-          userId: 1,
-          latitude: 37.7749,
-          longitude: -122.4194,
-          timestamp: new Date().toISOString(),
-        },
-        {
-          userId: 2,
-          latitude: 34.0522,
-          longitude: -118.2437,
-          timestamp: new Date().toISOString(),
-        },
-        {
-          userId: 3,
-          latitude: 40.7128,
-          longitude: -74.006,
-          timestamp: new Date().toISOString(),
-        },
-      ];
+      const newLocation: DriverLocation = {
+        userId,
+        latitude,
+        longitude,
+        timestamp: new Date().toISOString(),
+      };
+      driverLocations.push(newLocation);
+      resolve(newLocation);
+    }, 1000); // Simulate API delay
+  });
+};
 
-      const location = locations.find((loc) => loc.userId === userId);
+// Fetch driver location
+export const getDriverLocation = async (
+  userId: number
+): Promise<DriverLocation | null> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const location = driverLocations.find((loc) => loc.userId === userId);
       resolve(location || null);
     }, 1000); // Simulate API delay
   });
 };
 
-// Mock service to simulate geofence violations
+// Check for geofence violations
 export const checkGeofenceViolation = async (
   driverId: number,
   latitude: number,
   longitude: number
-) => {
+): Promise<GeofenceViolation[]> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      const geofences = [
-        {
-          id: 1,
-          latitude: 37.7749,
-          longitude: -122.4194,
-          radius: 1000,
-        },
-        {
-          id: 2,
-          latitude: 34.0522,
-          longitude: -118.2437,
-          radius: 1500,
-        },
-      ];
-
       const violations = geofences.map((geofence) => {
         const distance = Math.sqrt(
           Math.pow(geofence.latitude - latitude, 2) +
@@ -149,7 +158,6 @@ export const checkGeofenceViolation = async (
           isViolation: isOutside,
         };
       });
-
       resolve(violations);
     }, 1000); // Simulate API delay
   });
