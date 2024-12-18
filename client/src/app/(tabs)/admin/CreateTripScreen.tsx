@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TextInput,
+  Button,
   FlatList,
   StyleSheet,
   Alert,
@@ -35,14 +36,6 @@ const CreateTripScreen = () => {
 
     loadTrips();
   }, []);
-
-  // Function to fetch trips from AsyncStorage
-  const getTrips = async () => {
-    const storedTrips = await AsyncStorage.getItem("trips");
-    if (storedTrips) {
-      setTrips(JSON.parse(storedTrips));
-    }
-  };
 
   const addIntermediateDestination = () => {
     if (newDestination) {
@@ -110,10 +103,6 @@ const CreateTripScreen = () => {
     ];
   };
 
-  const showTrips = () => {
-    Alert.alert("Stored Trips", JSON.stringify(trips, null, 2));
-  };
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Create Trip</Text>
@@ -158,11 +147,6 @@ const CreateTripScreen = () => {
 
             <TouchableOpacity style={styles.button} onPress={createTrip}>
               <Text style={styles.buttonText}>Create Trip</Text>
-            </TouchableOpacity>
-
-            {/* New button to fetch trips */}
-            <TouchableOpacity style={styles.button} onPress={showTrips}>
-              <Text style={styles.buttonText}>Show All Trips</Text>
             </TouchableOpacity>
           </View>
         }

@@ -8,16 +8,7 @@ export const storeData = async (key: string, value: any): Promise<void> => {
     console.error("Error storing data:", error);
   }
 };
-// Get all geofences as a text string from AsyncStorage
-export const getAllGeofencesAsText = async (): Promise<string> => {
-  try {
-    const geofences = await getGeofencesFromStorage();
-    return JSON.stringify(geofences, null, 2);
-  } catch (error) {
-    console.error("Error getting all geofences as text:", error);
-    return "";
-  }
-};
+
 // Retrieve data from AsyncStorage
 export const getData = async <T>(key: string): Promise<T | null> => {
   try {

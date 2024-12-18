@@ -1,4 +1,3 @@
-// GeofenceManagementScreen.tsx
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -16,8 +15,35 @@ import MapView, { Marker, Circle } from "react-native-maps";
 import {
   getGeofencesFromStorage,
   saveGeofencesToStorage,
-  getAllGeofencesAsText,
 } from "../storageUtils";
+
+// Function to create a geofence (mock API)
+const createGeofence = async ({
+  latitude,
+  longitude,
+  radius,
+}: {
+  latitude: number;
+  longitude: number;
+  radius: number;
+}) => {
+  return new Promise<{
+    id: number;
+    latitude: number;
+    longitude: number;
+    radius: number;
+  }>((resolve) => {
+    setTimeout(() => {
+      const newGeofence = {
+        id: Date.now(),
+        latitude,
+        longitude,
+        radius,
+      };
+      resolve(newGeofence);
+    }, 500);
+  });
+};
 
 type Geofence = {
   id: number;
@@ -26,18 +52,19 @@ type Geofence = {
   radius: number;
 };
 
-const GeofenceManagementScreen = () => {
+const GeofenceManagementScreen: React.FC = () => {
   const [geofences, setGeofences] = useState<Geofence[]>([]);
-  const [latitude, setLatitude] = useState("22.5726"); // Default: Kolkata
-  const [longitude, setLongitude] = useState("88.3639");
-  const [radius, setRadius] = useState("1000"); // Default radius in meters
-  const [editGeofenceId, setEditGeofenceId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [latitude, setLatitude] = useState<string>("22.5726"); // Default: Kolkata
+  const [longitude, setLongitude] = useState<string>("88.3639");
+  const [radius, setRadius] = useState<string>("1000"); // Default radius in meters
+  const [editGeofenceId, setEditGeofenceId] = useState<number | null>(null); // Track editing state
+  const [loading, setLoading] = useState(true); // Track loading state
 
+  // Fetch geofences from AsyncStorage when the component mounts
   useEffect(() => {
     const fetchGeofencesList = async () => {
       try {
-        const fetchedGeofences: Geofence[] = await getGeofencesFromStorage();
+        const fetchedGeofences = await getGeofencesFromStorage();
         setGeofences(fetchedGeofences);
       } catch (error) {
         console.error("Error fetching geofences:", error);
@@ -48,6 +75,7 @@ const GeofenceManagementScreen = () => {
     fetchGeofencesList();
   }, []);
 
+  // Handle saving geofences (create or update)
   const handleSaveGeofence = async () => {
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
@@ -59,9 +87,10 @@ const GeofenceManagementScreen = () => {
     }
 
     try {
-      let updatedGeofences: Geofence[];
+      let updatedGeofences;
 
       if (editGeofenceId !== null) {
+        // Edit existing geofence
         updatedGeofences = geofences.map((geofence) =>
           geofence.id === editGeofenceId
             ? {
@@ -73,17 +102,18 @@ const GeofenceManagementScreen = () => {
             : geofence
         );
       } else {
-        const newGeofence: Geofence = {
-          id: Date.now(),
+        // Create new geofence
+        const newGeofence = await createGeofence({
           latitude: lat,
           longitude: lng,
           radius: rad,
-        };
+        });
         updatedGeofences = [...geofences, newGeofence];
       }
 
+      // Save the updated geofences
       await saveGeofencesToStorage(updatedGeofences);
-      setGeofences(updatedGeofences);
+      setGeofences(updatedGeofences); // Update the state directly
       Alert.alert("Success", "Geofence saved successfully!");
       resetForm();
     } catch (error) {
@@ -92,48 +122,24 @@ const GeofenceManagementScreen = () => {
     }
   };
 
+  // Handle editing a geofence
+  const handleEditGeofence = (geofence: Geofence) => {
+    setLatitude(String(geofence.latitude));
+    setLongitude(String(geofence.longitude));
+    setRadius(String(geofence.radius));
+    setEditGeofenceId(geofence.id);
+  };
+
+  // Handle deleting a geofence
   const handleDeleteGeofence = (id: number) => {
     const updatedGeofences = geofences.filter((geofence) => geofence.id !== id);
     setGeofences(updatedGeofences);
-    saveGeofencesToStorage(updatedGeofences);
+    saveGeofencesToStorage(updatedGeofences); // Save the updated geofences after deletion
     Alert.alert("Success", "Geofence deleted successfully!");
     resetForm();
   };
 
-  const handleDeleteGeofenceByInput = () => {
-    const lat = parseFloat(latitude);
-    const lng = parseFloat(longitude);
-    const rad = parseInt(radius, 10);
-
-    if (!lat || !lng || !rad) {
-      Alert.alert("Error", "Please provide valid latitude, longitude, and radius.");
-      return;
-    }
-
-    const matchingGeofence = geofences.find(
-      (geofence) =>
-        geofence.latitude === lat &&
-        geofence.longitude === lng &&
-        geofence.radius === rad
-    );
-
-    if (matchingGeofence) {
-      handleDeleteGeofence(matchingGeofence.id);
-    } else {
-      Alert.alert("Error", "No matching geofence found.");
-    }
-  };
-
-  const handleGetAllGeofences = async () => {
-    try {
-      const geofencesText = await getAllGeofencesAsText();
-      Alert.alert("All Geofences", geofencesText);
-    } catch (error) {
-      console.error("Error fetching all geofences:", error);
-      Alert.alert("Error", "Failed to retrieve geofences.");
-    }
-  };
-
+  // Reset the form to its initial state
   const resetForm = () => {
     setLatitude("22.5726");
     setLongitude("88.3639");
@@ -142,7 +148,7 @@ const GeofenceManagementScreen = () => {
   };
 
   if (loading) {
-    return <Text>Loading geofences...</Text>;
+    return <Text>Loading geofences...</Text>; // Show loading message or spinner
   }
 
   return (
@@ -176,6 +182,7 @@ const GeofenceManagementScreen = () => {
                   longitude: geofence.longitude,
                 }}
                 title={`Geofence: ${geofence.radius} meters`}
+                onPress={() => handleEditGeofence(geofence)}
               />
               <Circle
                 center={{
@@ -189,7 +196,6 @@ const GeofenceManagementScreen = () => {
             </React.Fragment>
           ))}
         </MapView>
-
         <View style={styles.formContainer}>
           <TextInput
             placeholder="Latitude"
@@ -219,28 +225,22 @@ const GeofenceManagementScreen = () => {
             </Text>
           </TouchableOpacity>
 
-          {editGeofenceId ? (
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={resetForm}
-            >
-              <Text style={styles.buttonText}>Cancel</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.button, styles.deleteButton]}
-              onPress={handleDeleteGeofenceByInput}
-            >
-              <Text style={styles.buttonText}>Delete Geofence</Text>
-            </TouchableOpacity>
+          {editGeofenceId && (
+            <>
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={resetForm}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.deleteButton]}
+                onPress={() => handleDeleteGeofence(editGeofenceId)}
+              >
+                <Text style={styles.buttonText}>Delete Geofence</Text>
+              </TouchableOpacity>
+            </>
           )}
-
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: "#28a745" }]}
-            onPress={handleGetAllGeofences}
-          >
-            <Text style={styles.buttonText}>Get All Geofences</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -251,62 +251,35 @@ const styles = StyleSheet.create({
   map: {
     width: Dimensions.get("window").width,
     height: Dimensions.get("window").height * 0.6,
-    },
-    formContainer: {
-      padding: 20,
-    },
-    input: {
-      height: 40,
-      borderColor: "gray",
-      borderWidth: 1,
-      marginBottom: 10,
-      paddingHorizontal: 10,
-    },
-    button: {
-      backgroundColor: "#007bff",
-      padding: 10,
-      alignItems: "center",
-      marginBottom: 10,
-    },
-    buttonText: {
-      color: "white",
-      fontWeight: "bold",
-    },
-    cancelButton: {
-      backgroundColor: "#6c757d",
-    },
-    deleteButton: {
-      backgroundColor: "#dc3545",
-    },
-  });
-  
-  export default GeofenceManagementScreen;
+  },
+  formContainer: {
+    padding: 20,
+    backgroundColor: "#f9f9f9",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 10,
+  },
+  button: {
+    backgroundColor: "#007bff",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  cancelButton: {
+    backgroundColor: "#ff4d4d",
+  },
+  deleteButton: {
+    backgroundColor: "#e74c3c",
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+});
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+export default GeofenceManagementScreen;
